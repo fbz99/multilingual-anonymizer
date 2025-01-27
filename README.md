@@ -41,9 +41,7 @@ It consists of:
    ```
 3. **Install required Python packages**:
    ```bash
-   pip install flask flask-cors gliner langdetect
-   # If needed for PDF/DOCX/XLSX:
-   pip install PyPDF2 python-docx openpyxl
+   pip install -r requirements.txt
    ```
 4. **Check** that the files `index.html` and `deanonymize.html` are in the same directory or a convenient static folder.
 
