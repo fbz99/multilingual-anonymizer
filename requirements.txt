@@ -1,8 +1,9 @@
-spacy
+Flask
+Flask-Cors
 PyPDF2
 python-docx
+openpyxl
 langdetect
-cryptography
 gliner
-tqdm
-nltk
+cryptography
+tqdm    

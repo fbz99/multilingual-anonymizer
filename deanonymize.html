@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>De-anonymize</title>
+  <style>
+    /* Navbar in alto (uguale a index.html, con link invertiti) */
+    nav {
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+    }
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin-right: 20px;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    /* Layout principale (una sola colonna a sinistra per i drop) */
+    #container {
+      display: flex;
+      flex-direction: row;
+      height: 80vh;
+    }
+
+    /* Colonna sinistra */
+    #left {
+      width: 50%;
+      border: 2px dashed #999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      padding: 20px;
+    }
+
+    /* Box drag & drop (riutilizzato con ID diversi) */
+    .dropZone {
+      width: 80%;
+      height: 120px;
+      border: 2px dashed #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .dropZone.hover {
+      background-color: #eee;
+    }
+
+    /* Nascondiamo gli input file */
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Colonna destra (potresti lasciarla vuota o usarla per messaggi) */
+    #right {
+      width: 50%;
+      border: 1px solid #ccc;
+      padding: 20px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR in alto -->
+  <nav>
+    <a href="index.html">Anonymize</a>
+    <a href="deanonymize.html">De-anonymize</a>
+  </nav>
+
+  <h1>De-anonymize</h1>
+
+  <div id="container">
+    <!-- Colonna Sinistra -->
+    <div id="left">
+      <!-- Blocco per caricare il file di testo anonimizzato -->
+      <div class="dropZone" id="dropZoneText">Trascina il testo anonimizzato qui</div>
+      <button id="selectTextBtn">Seleziona Testo Anonimizzato...</button>
+      <input type="file" id="textFileInput" accept=".txt" />
+
+      <br />
+
+      <!-- Blocco per caricare il file mapping -->
+      <div class="dropZone" id="dropZoneMapping">Trascina il file di mapping qui</div>
+      <button id="selectMappingBtn">Seleziona File Mapping...</button>
+      <input type="file" id="mappingFileInput" accept=".json" />
+
+      <br />
+
+      <button id="deanonimizzaBtn">De-anonymize</button>
+    </div>
+
+    <!-- Colonna Destra -->
+    <div id="right">
+      <h3>Messaggi / Log:</h3>
+      <div id="messages"></div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script>
+    let textFile = null;      // conterrà l'oggetto File del testo anonimizzato
+    let mappingFile = null;   // conterrà l'oggetto File del mapping
+
+    $(document).ready(function () {
+      // --- TEXT FILE ---
+      setupDropZone(
+        "#dropZoneText", 
+        "#selectTextBtn", 
+        "#textFileInput",
+        function(file) {
+          textFile = file;
+          $("#dropZoneText").text("File testo selezionato: " + file.name);
+        }
+      );
+
+      // --- MAPPING FILE ---
+      setupDropZone(
+        "#dropZoneMapping", 
+        "#selectMappingBtn", 
+        "#mappingFileInput",
+        function(file) {
+          mappingFile = file;
+          $("#dropZoneMapping").text("File mapping selezionato: " + file.name);
+        }
+      );
+
+      // Clic su "De-anonymize"
+      $("#deanonimizzaBtn").click(async function() {
+        if (!textFile) {
+          alert("Seleziona o trascina il file di testo anonimizzato prima.");
+          return;
+        }
+        if (!mappingFile) {
+          alert("Seleziona o trascina il file di mapping prima.");
+          return;
+        }
+
+        $("#messages").text("Invio file al server, in corso...");
+
+        // Creiamo il FormData con i due file
+        let formData = new FormData();
+        formData.append("textFile", textFile);
+        formData.append("mappingFile", mappingFile);
+
+        // Inviamo la richiesta AJAX
+        try {
+          const response = await $.ajax({
+            url: "http://localhost:5000/api/deanonymize",
+            method: "POST",
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: "json"  // ci aspettiamo JSON
+          });
+
+          if (response.error) {
+            $("#messages").text("Errore dal server: " + response.error);
+            return;
+          }
+
+          // Supponiamo che il server risponda con { "deanonymized_base64": "..." }
+          if (response.deanonymized_base64) {
+            $("#messages").text("De-anonymizzazione completata. Avvio download...");
+            downloadDeanonymized(response.deanonymized_base64);
+          } else {
+            $("#messages").text("Il server non ha fornito il file de-anonimizzato.");
+          }
+
+        } catch (err) {
+          console.error("Errore AJAX:", err);
+          $("#messages").text("Errore AJAX: " + err.statusText);
+        }
+      });
+    });
+
+    /**
+     * Funzione helper per inizializzare dropZone + pulsante "Seleziona file..." + input file nascosto.
+     * @param {string} dropZoneSelector - es: "#dropZoneText"
+     * @param {string} buttonSelector   - es: "#selectTextBtn"
+     * @param {string} fileInputSelector- es: "#textFileInput"
+     * @param {Function} onFileSelected - callback che riceve un oggetto File
+     */
+    function setupDropZone(dropZoneSelector, buttonSelector, fileInputSelector, onFileSelected) {
+      const dropZone = $(dropZoneSelector);
+      const fileInput = $(fileInputSelector);
+
+      // Drag&drop events
+      dropZone.on("dragenter", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.addClass("hover");
+      });
+      dropZone.on("dragleave", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.removeClass("hover");
+      });
+      dropZone.on("dragover", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      dropZone.on("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.removeClass("hover");
+
+        const files = e.originalEvent.dataTransfer.files;
+        if (files && files.length > 0) {
+          const file = files[0];
+          onFileSelected(file);
+        }
+      });
+
+      // Pulsante "Seleziona..."
+      $(buttonSelector).click(() => {
+        fileInput.click();
+      });
+
+      // Cambio input file
+      fileInput.change((e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          const file = e.target.files[0];
+          onFileSelected(file);
+        }
+      });
+    }
+
+    /**
+     * Funzione per scaricare il file de-anonimizzato da una stringa base64
+     */
+    function downloadDeanonymized(base64Data) {
+      const link = document.createElement("a");
+      link.href = "data:text/plain;base64," + base64Data;
+      link.download = "deanonymized.txt";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
