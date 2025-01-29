@@ -1,123 +1,140 @@
-# Anonymizer and Deanonymizer
+## Overview
 
-This project provides a system for anonymizing text from various input file formats (PDFs, TXT files), securely storing entity mappings, and deanonymizing reworked text returned by a Large Language Model (LLM). The anonymizer processes input files and generates anonymized outputs and encrypted entity mappings, while the deanonymizer reconstructs the original text using mappings for the corresponding LLM responses.
+This project provides a **multilingual anonymizer** and **de-anonymizer** for text files, using [GLiNER](https://github.com/Babelscape/GLiNER) for Named Entity Recognition. It supports different file formats (TXT, PDF, DOCX, XLSX, etc.) and can detect English and Italian by default (you can extend it to other languages).
 
-## Features
+It consists of:
 
-- **Anonymizer**:
-  - Processes multiple input files from the `input` folder.
-  - Supports PDFs and TXT file formats.
-  - Generates anonymized text files and encrypted mappings for secure storage.
-  - Saves anonymized outputs to the `output` folder.
+1. A **Flask-based backend** (`app.py`) exposing two main REST endpoints:
+   - `POST /api/anonymize` – Receives a single file, extracts text, anonymizes named entities, returns:
+     - The anonymized text in plain form.
+     - A Base64-encoded ZIP that contains:
+       1. `anonymized.txt`
+       2. `mapping.json` (placeholder → original text pairs).
+   - `POST /api/deanonymize` – Receives two files (`anonymized text` and `mapping.json`), restores the original text, and returns a Base64-encoded file.
 
-- **Deanonymizer**:
-  - Processes reworked text returned by the LLM from the `response` folder.
-  - Matches reworked text with encrypted mappings stored in the `output` folder.
-  - Reconstructs and saves the original text in the `reconstructed` folder.
+2. Two **HTML/CSS + jQuery** frontends:
+   - **`index.html`**: The **anonymization** page. Users can drag & drop or select a file to upload, click “Anonymize,” see the anonymized text, and automatically download a ZIP with the anonymized data and mapping.
+   - **`deanonymize.html`**: The **de-anonymization** page. Users can drag & drop or select the anonymized text file and the mapping file, then click “De-anonymize” to get the restored original text as a Base64 download.
 
-- **Security**:
-  - Uses RSA (4096-bit keys) for public/private key encryption.
-  - AES encryption ensures secure mapping storage.
+---
+
+## Requirements
+
+- **Python** 3.8+  
+- **pip** (to install dependencies)  
+- **Flask** and **Flask-CORS** (for the backend server)  
+- **GLiNER** and **langdetect** (for Named Entity Recognition and language detection)  
+- (Optional) **PyPDF2**, **python-docx**, **openpyxl**, etc., if you want to fully extract text from PDF, DOCX, XLSX.  
+- A simple local or remote web server to serve the **HTML** pages, or open them directly from the filesystem (for testing).
+
+---
 
 ## Installation
 
-### Prerequisites
-
-1. **Python**: Ensure Python 3.8 or higher is installed.
-2. **Required Libraries**:
-   Install the dependencies using the following command:
+1. **Clone or download** this repository.
+2. Create a **virtual environment** (optional but recommended):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # or
+   venv\Scripts\activate     # Windows
+   ```
+3. **Install required Python packages**:
    ```bash
    pip install -r requirements.txt
    ```
+4. **Check** that the files `index.html` and `deanonymize.html` are in the same directory or a convenient static folder.
 
-   **Dependencies**:
-   - `PyPDF2`: For extracting text from PDF files.
-   - `cryptography`: For secure encryption and decryption.
+---
 
-### Folder Structure
+## Running the Backend
 
-Ensure the following folder structure exists before running the scripts:
+Inside the project folder (where `app.py` is located), run:
 
-```
-.
-├── input/                 # Input files to be anonymized (PDFs, TXT).
-├── output/                # Anonymized text and encrypted mappings.
-├── response/              # Reworked text returned by the LLM.
-├── reconstructed/         # Reconstructed original text files.
-├── public_keys/           # Folder for public keys.
-├── private_key.pem        # Private key (generated with --keygen).
-├── anonymizer.py          # Anonymizer script.
-├── deanonymizer.py        # Deanonymizer script.
-├── entities.txt           # List of entities to anonymize.
-├── requirements.txt       # Dependencies for the project.
-```
-
-## Usage
-
-### 1. **Generate RSA Keys**
-To generate RSA public/private keys for secure mapping storage, use:
 ```bash
-python3 anonymizer.py --keygen
+python app.py
 ```
 
-- The private key is saved as `private_key.pem`.
-- The public key is saved in the `public_keys` folder as `public_key.pem`.
+By default, it starts on `http://localhost:5000`. You will see log messages in the terminal indicating the server status.
 
-### 2. **Anonymize Input Files**
-Place your input files (`.pdf`, `.txt`) in the `input` folder, then run:
-```bash
-python3 anonymizer.py
+---
+
+## Anonymization
+
+1. **Open** `index.html` in your browser (e.g., double-click the file or serve it from a local static server).  
+2. A simple **navbar** appears with two links:
+   - “Anonymize” → This page.
+   - “De-anonymize” → `deanonymize.html`.
+3. On the **left**, you will see a **drag & drop** area and a button to select the file:
+   - Supported file formats for text extraction depend on your backend logic. In the simplest case, it handles `.txt`.
+   - Once the file is selected, its name is displayed.
+4. Click the **“Anonymize”** button. The page will:
+   - Send an AJAX request (`POST /api/anonymize`) with the file.
+   - The server replies with a JSON containing:
+     - `anonymized_text`: The text containing placeholders, displayed on the **right**.
+     - `zip_base64`: A base64 string for a ZIP containing `anonymized.txt` + `mapping.json`.
+   - The frontend automatically triggers a download for the ZIP file (“anonymized_package.zip”).
+
+---
+
+## De-anonymization
+
+1. **Open** `deanonymize.html` in your browser.  
+2. The **navbar** links:
+   - “Anonymize” → `index.html`.
+   - “De-anonymize” → This page.
+3. You see two **drag & drop** zones (and buttons to select files):
+   - One for the **anonymized text** (e.g., `anonymized.txt`).
+   - One for the **mapping** file (e.g., `mapping.json`).
+4. After you have selected both files, click **“De-anonymize.”**  
+5. The page sends a `POST /api/deanonymize` request with these two files. The backend:
+   - Reads the anonymized text.
+   - Reads `mapping.json` with placeholder → original mappings.
+   - Replaces placeholders with original text.
+   - Returns a JSON with `deanonymized_base64`.
+6. The frontend automatically **downloads** the restored file as `deanonymized.txt`.
+
+---
+
+## Customization
+
+- **File extraction**: Currently, the sample code in `extract_text` only reads `.txt`. If you want PDF, DOCX, XLSX support, integrate the relevant libraries (`PyPDF2`, `python-docx`, `openpyxl`) within `extract_text` accordingly.
+- **CORS**: If you’re opening the HTML files on a different origin than the Flask server, ensure `flask_cors.CORS(app)` is used or manage CORS headers manually.
+- **Labels**: By default, it recognizes `["PERSON", "ORG", "LOC"]`. You can customize labels or load them from a file.
+- **Language detection**: We use `langdetect`; if the detected language code is not one of the loaded GLiNER models, we default to `"en"`.
+- **Encryption**: This example does not encrypt `mapping.json`. If you want a hybrid RSA+AES approach, adapt the code to encrypt/decrypt the mapping.
+
+---
+
+## Example Folder Structure
+
+```
+project/
+├── app.py
+├── requirements.txt  (optional)
+├── index.html        (Anonymization frontend)
+├── deanonymize.html  (De-anonymization frontend)
+└── ...
 ```
 
-- Anonymized text files are saved in the `output` folder with the suffix `_processed.json`.
-- Encrypted mappings for each file are included in the corresponding JSON file.
+---
 
-### 3. **Send to LLM**
-Send the anonymized text files to the LLM for processing. Save the LLM's reworked text in the `response` folder. Ensure the placeholders in the text remain unchanged.
+## Usage Summary
 
-### 4. **Deanonymize LLM Responses**
-To reconstruct the original text from the LLM’s reworked response, run:
-```bash
-python3 deanonymizer.py
-```
+1. **Start the Flask backend**:
+   ```bash
+   python app.py
+   # runs on http://localhost:5000
+   ```
+2. **Open `index.html`** to anonymize:
+   - Drag or select a file.  
+   - Click “Anonymize.”  
+   - View anonymized text and auto-download a ZIP with `anonymized.txt` + `mapping.json`.
+3. **Open `deanonymize.html`** to de-anonymize:
+   - Upload both the anonymized text (`anonymized.txt`) and the `mapping.json`.  
+   - Click “De-anonymize.”  
+   - Auto-download `deanonymized.txt`.
 
-- The deanonymized files will be saved in the `reconstructed` folder with the suffix `_reconstructed.txt`.
-
-### Optional Arguments
-- **Anonymizer**:
-  - `--keygen`: Generate RSA keys before processing files.
-
-- **Deanonymizer**:
-  - `--private_key`: Specify a custom private key path. Defaults to `private_key.pem`.
-
-## Example Workflow
-
-1. **Anonymization**:
-   - Input: `input/example.txt`
-   - Output: `output/example_processed.json`
-
-2. **LLM Response**:
-   - Reworked text from LLM: `response/example_anonymized.txt`
-
-3. **Deanonymization**:
-   - Reconstructed output: `reconstructed/example_reconstructed.txt`
-
-## Security Notes
-
-- **Keys**: Keep the `private_key.pem` file secure. Distribute only the `public_key.pem` for encryption.
-- **Mappings**: Encrypted mappings ensure sensitive data cannot be accessed without the private key.
-
-## Troubleshooting
-
-- **No Files Found**:
-  - Ensure input files are placed in the `input` folder for anonymization or the `response` folder for deanonymization.
-
-- **Error: Mapping File Not Found**:
-  - Verify that the corresponding mapping exists in the `output` folder.
-
-- **Unsupported File Types**:
-  - The scripts currently support `.pdf` and `.txt` formats.
+---
 
 ## License
-
-This project is licensed under the MIT License.
