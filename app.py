@@ -9,55 +9,100 @@ from pathlib import Path
 from flask import Flask, request
 from flask_cors import CORS
 
-# Se servono: PyPDF2, docx, openpyxl, langdetect, gliner, ecc.
-# pip install gliner langdetect
 from gliner import GLiNER
 from langdetect import detect
 
 app = Flask(__name__)
-CORS(app)  # Consenti richieste da frontend (HTML/jQuery ecc.)
+CORS(app)  # Allow cross-origin requests (e.g., from HTML/JS frontends)
 
 ################################
-# 1. CARICAMENTO MODELLI GLiNER
+# 1. LOAD GLiNER MODELS
 ################################
-# Supponiamo di gestire solo 2 lingue: inglese e italiano
 gliner_models = {
     "en": GLiNER.from_pretrained("gliner-community/gliner_medium-v2.5"),
     "it": GLiNER.from_pretrained("DeepMount00/GLiNER_ITA_LARGE")
 }
 
-# Eventuali label. Puoi caricarle da un file, se preferisci.
-LABELS = ["PERSON", "ORG", "LOC"]
+LABELS = ["PERSON", "ORG", "LOC"]  # Example entity labels
 
 ############################
-# 2. FUNZIONI UTILI
+# 2. UTILITY FUNCTIONS
 ############################
 
 def extract_text(path: Path) -> str:
     """
-    Estrai il testo dal file locale. 
-    Esempio minimizzato: se hai bisogno di PDF, DOCX o XLSX, integra le librerie
-    (PyPDF2, python-docx, openpyxl) e la logica di estrazione.
-    Per brevità, qui ipotizziamo si tratti di .txt.
+    Extract text from a local file, handling PDF, DOCX, XLSX, and TXT.
+    If you need more formats, extend accordingly.
     """
-    # Esempio banale: leggi .txt
-    # Se vuoi veramente gestire PDF, DOCX, XLSX, sostituisci con la logica appropriata.
-    return path.read_text(encoding="utf-8", errors="replace")
+    suffix = path.suffix.lower()
+    text = ""
+
+    if suffix == ".pdf":
+        # PDF extraction
+        from PyPDF2 import PdfReader
+        try:
+            reader = PdfReader(str(path))
+            for page in reader.pages:
+                page_text = page.extract_text() or ""
+                text += page_text + "\n"
+        except Exception as e:
+            print(f"Error reading PDF {path}: {e}")
+            return ""
+        return text.strip()
+
+    elif suffix == ".docx":
+        # DOCX extraction
+        import docx
+        try:
+            doc = docx.Document(str(path))
+            for para in doc.paragraphs:
+                text += para.text + "\n"
+        except Exception as e:
+            print(f"Error reading DOCX {path}: {e}")
+            return ""
+        return text.strip()
+
+    elif suffix == ".xlsx":
+        # XLSX extraction
+        import openpyxl
+        try:
+            wb = openpyxl.load_workbook(str(path), data_only=True)
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows(values_only=True):
+                    row_text = [str(cell) for cell in row if cell is not None]
+                    if row_text:
+                        text += " ".join(row_text) + "\n"
+        except Exception as e:
+            print(f"Error reading XLSX {path}: {e}")
+            return ""
+        return text.strip()
+
+    elif suffix == ".txt":
+        # TXT read
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except Exception as e:
+            print(f"Error reading TXT {path}: {e}")
+            return ""
+
+    else:
+        print(f"Unsupported file format: {suffix}")
+        return ""
 
 def detect_language_of_text(text: str) -> str:
     try:
         code = detect(text)
         if code not in gliner_models:
-            return "en"  # fallback se non supportato
+            return "en"  # fallback if not supported
         return code
     except:
         return "en"  # fallback
 
 def anonymize_text(text: str, lang_code: str):
     """
-    Usa GLiNER per riconoscere entità e sostituirle con placeholder.
-    Restituisce (testo_anonimizzato, lista_mapping).
-    lista_mapping = [(placeholder, original), ...].
+    Use GLiNER to detect entities and replace them with placeholders.
+    Returns (anonymized_text, mapping_list) where
+    mapping_list = [(placeholder, original_text), ...].
     """
     model = gliner_models[lang_code]
     entities = model.predict_entities(text, LABELS, threshold=0.5)
@@ -72,8 +117,8 @@ def anonymize_text(text: str, lang_code: str):
 
 def deanonymize_text(anonymized_text: str, mapping_list: list) -> str:
     """
-    Sostituisce i placeholder con gli originali.
-    mapping_list è una lista di tuple (placeholder, original).
+    Replace placeholders with their original strings.
+    mapping_list is [(placeholder, original), ...].
     """
     deanonymized = anonymized_text
     for placeholder, original in mapping_list:
@@ -86,12 +131,12 @@ def deanonymize_text(anonymized_text: str, mapping_list: list) -> str:
 @app.route("/api/anonymize", methods=["POST"])
 def api_anonymize():
     """
-    Riceve un file ("file"), estrae testo, anonimizza, ritorna:
+    Receives a single file ("file"), extracts text, anonymizes, and returns:
     {
       "anonymized_text": "...",
       "zip_base64": "..."
     }
-    Lo zip_base64 contiene "anonymized.txt" + "mapping.json".
+    The zip_base64 contains anonymized.txt + mapping.json.
     """
     if "file" not in request.files:
         return {"error": "File not provided"}, 400
@@ -100,7 +145,7 @@ def api_anonymize():
     if uploaded_file.filename == "":
         return {"error": "Empty filename"}, 400
 
-    # Salva in un file temporaneo
+    # Save to a temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.filename) as tf:
         uploaded_file.save(tf.name)
         raw_text = extract_text(Path(tf.name))
@@ -108,17 +153,16 @@ def api_anonymize():
     lang_code = detect_language_of_text(raw_text)
     anonymized_text, mapping_list = anonymize_text(raw_text, lang_code)
 
-    # Creiamo uno ZIP in memoria con anonymized.txt e mapping.json
+    # Create a ZIP in memory with anonymized.txt + mapping.json
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("anonymized.txt", anonymized_text)
-        # Qui il mapping è in chiaro; se vuoi cifrarlo, puoi farlo
         zf.writestr("mapping.json", json.dumps({
             "mapping": mapping_list,
             "language": lang_code
         }, ensure_ascii=False, indent=2))
 
-    # Convertiamo lo ZIP in base64
+    # Convert ZIP to Base64
     zip_buffer.seek(0)
     zip_data = zip_buffer.read()
     zip_base64 = base64.b64encode(zip_data).decode("utf-8")
@@ -134,35 +178,34 @@ def api_anonymize():
 @app.route("/api/deanonymize", methods=["POST"])
 def api_deanonymize():
     """
-    Riceve due file:
-      - "textFile" (il testo anonimizzato, ex anonymized.txt)
-      - "mappingFile" (il mapping.json)
-    Restituisce:
-      {
-        "deanonymized_base64": "..."
-      }
-    con la stringa de-anonimizzata in base64.
+    Receives two files:
+      - textFile (the anonymized text, e.g. anonymized.txt)
+      - mappingFile (the mapping.json)
+    Returns:
+    {
+      "deanonymized_base64": "..."
+    } with the de-anonymized text in Base64.
     """
     if "textFile" not in request.files or "mappingFile" not in request.files:
         return {"error": "Missing textFile or mappingFile"}, 400
 
-    # Leggiamo il testo anonimizzato
+    # Read the anonymized text
     anonymized_data = request.files["textFile"].read().decode("utf-8", errors="replace")
 
-    # Leggiamo il file di mapping
+    # Read the mapping file
     mapping_content = request.files["mappingFile"].read().decode("utf-8", errors="replace")
     try:
         mapping_json = json.loads(mapping_content)
     except:
         return {"error": "Invalid JSON in mappingFile"}, 400
 
-    # Recuperiamo la lista di tuple (placeholder, original)
+    # Extract the list of (placeholder, original)
     mapping_list = mapping_json.get("mapping", [])
 
-    # Eseguiamo la de-anonimizzazione
+    # Perform de-anonymization
     deanonymized = deanonymize_text(anonymized_data, mapping_list)
 
-    # Convertiamo in base64 per restituirlo
+    # Encode result in Base64
     result_b64 = base64.b64encode(deanonymized.encode("utf-8")).decode("utf-8")
 
     return {
@@ -170,7 +213,7 @@ def api_deanonymize():
     }
 
 ###################
-# AVVIO DELL'APP
+# APP ENTRY POINT
 ###################
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
