@@ -2,3 +2,10 @@ Person
 Date
 Organization
 Location
+Mail
+E-mail
+Address
+Codice fiscale
+Code
+Amount
+Signature
