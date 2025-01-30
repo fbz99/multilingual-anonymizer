@@ -130,10 +130,6 @@ def deanonymize_text(anonymized_text: str, mapping_list: list) -> str:
 ############################
 @app.route("/api/anonymize", methods=["POST"])
 def api_anonymize():
-    """
-    Ad ogni chiamata ricarichiamo le labels da gliner_entities.txt,
-    così da cogliere eventuali modifiche in tempo reale.
-    """
     # 1. Ricarica le etichette
     labels = load_labels()
     print(f"Using labels: {labels}")
@@ -177,10 +173,14 @@ def api_anonymize():
 ##############################
 @app.route("/api/deanonymize", methods=["POST"])
 def api_deanonymize():
+    # Verifica che textFile e mappingFile siano presenti
     if "textFile" not in request.files or "mappingFile" not in request.files:
         return {"error": "Missing textFile or mappingFile"}, 400
 
+    # Leggi il testo anonimizzato
     anonymized_data = request.files["textFile"].read().decode("utf-8", errors="replace")
+
+    # Leggi il file di mapping
     mapping_content = request.files["mappingFile"].read().decode("utf-8", errors="replace")
 
     try:
@@ -189,11 +189,27 @@ def api_deanonymize():
         return {"error": "Invalid JSON in mappingFile"}, 400
 
     mapping_list = mapping_json.get("mapping", [])
+    # Esegui la de-anonimizzazione
     deanonymized = deanonymize_text(anonymized_data, mapping_list)
 
+    # Codifica il testo de-anonimizzato in base64 (per l'anteprima)
     result_b64 = base64.b64encode(deanonymized.encode("utf-8")).decode("utf-8")
+
+    # 1) Creiamo anche un ZIP con il file "deanonymized.txt" 
+    #    (così l'utente può scaricarlo subito)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("deanonymized.txt", deanonymized)
+
+    zip_buffer.seek(0)
+    zip_data = zip_buffer.read()
+    zip_base64 = base64.b64encode(zip_data).decode("utf-8")
+
+    # Ritorniamo sia la stringa in base64 (deanonymized_base64) 
+    # che lo ZIP da scaricare (zip_base64)
     return {
-        "deanonymized_base64": result_b64
+        "deanonymized_base64": result_b64,
+        "zip_base64": zip_base64
     }
 
 ###################

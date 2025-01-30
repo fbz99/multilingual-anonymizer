@@ -1,0 +1,79 @@
+/* Navbar in alto */
+nav {
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+  }
+  
+  nav a {
+    color: #fff;
+    text-decoration: none;
+    margin-right: 20px;
+  }
+  
+  nav a:hover {
+    text-decoration: underline;
+  }
+  
+  /* Layout principale a due colonne */
+  #container {
+    display: flex;
+    height: 80vh;
+  }
+  
+  /* Colonna sinistra */
+  #left {
+    width: 50%;
+    border: 2px dashed #999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  
+  /* Box drag & drop */
+  #dropZone {
+    width: 80%;
+    height: 200px;
+    border: 2px dashed #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #666;
+    margin-bottom: 10px;
+  }
+  
+  #dropZone.hover {
+    background-color: #eee;
+  }
+  
+  /* Pulsante invisibile per file */
+  #fileInput {
+    display: none; 
+  }
+  
+  /* Colonna destra */
+  #right {
+    width: 50%;
+    border: 1px solid #ccc;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  
+  #anonText {
+    white-space: pre-wrap; /* Mantiene i ritorni a capo */
+  }
+  
+  #fileTextInput, #fileMapInput {
+    display: none;
+  }
+
+  #fileInput {
+    display: none;
+  }
+  #dropZone.hover {
+    background-color: #f0f0f0;
+  }
+  

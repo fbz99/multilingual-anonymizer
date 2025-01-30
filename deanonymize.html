@@ -3,69 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <title>De-anonymize</title>
-  <style>
-    /* Navbar in alto (uguale a index.html, con link invertiti) */
-    nav {
-      background-color: #333;
-      color: #fff;
-      padding: 10px;
-    }
-    nav a {
-      color: #fff;
-      text-decoration: none;
-      margin-right: 20px;
-    }
-    nav a:hover {
-      text-decoration: underline;
-    }
 
-    /* Layout principale (una sola colonna a sinistra per i drop) */
-    #container {
-      display: flex;
-      flex-direction: row;
-      height: 80vh;
-    }
-
-    /* Colonna sinistra */
-    #left {
-      width: 50%;
-      border: 2px dashed #999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: start;
-      padding: 20px;
-    }
-
-    /* Box drag & drop (riutilizzato con ID diversi) */
-    .dropZone {
-      width: 80%;
-      height: 120px;
-      border: 2px dashed #aaa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      color: #666;
-      margin-bottom: 10px;
-    }
-    .dropZone.hover {
-      background-color: #eee;
-    }
-
-    /* Nascondiamo gli input file */
-    input[type="file"] {
-      display: none;
-    }
-
-    /* Colonna destra (potresti lasciarla vuota o usarla per messaggi) */
-    #right {
-      width: 50%;
-      border: 1px solid #ccc;
-      padding: 20px;
-      overflow-y: auto;
-    }
-  </style>
+  <!-- Bootstrap CSS -->
+  <link 
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  >
+  
+  <!-- Il tuo file CSS (con #fileTextInput, #fileMapInput { display: none; }) -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -75,84 +21,198 @@
     <a href="deanonymize.html">De-anonymize</a>
   </nav>
 
-  <h1>De-anonymize</h1>
+  <h1 class="text-center my-4">De-anonimizzazione</h1>
 
-  <div id="container">
-    <!-- Colonna Sinistra -->
-    <div id="left">
-      <!-- Blocco per caricare il file di testo anonimizzato -->
-      <div class="dropZone" id="dropZoneText">Trascina il testo anonimizzato qui</div>
-      <button id="selectTextBtn">Seleziona Testo Anonimizzato...</button>
-      <input type="file" id="textFileInput" accept=".txt" />
+  <div class="container">
 
-      <br />
+    <div class="row mb-5">
+      <!-- Blocco: Testo Anonimizzato -->
+      <div class="col-md-6 text-center">
+        <h3>Carica il Testo Anonimizzato</h3>
+        
+        <!-- Label con il nome del file selezionato -->
+        <p id="selectedAnonTextFileLabel" class="fw-bold">Nessun file selezionato</p>
 
-      <!-- Blocco per caricare il file mapping -->
-      <div class="dropZone" id="dropZoneMapping">Trascina il file di mapping qui</div>
-      <button id="selectMappingBtn">Seleziona File Mapping...</button>
-      <input type="file" id="mappingFileInput" accept=".json" />
+        <!-- Zona drag & drop -->
+        <div id="dropZoneText" class="mb-3 border p-3">
+          Trascina qui il file di testo anonimizzato
+        </div>
+        <p>Oppure</p>
 
-      <br />
+        <!-- UN SOLO PULSANTE (stile Bootstrap) + input nascosto -->
+        <button 
+          id="selectFileTextBtn" 
+          type="button" 
+          class="btn btn-primary mb-2">
+          Seleziona File di Testo...
+        </button>
 
-      <button id="deanonimizzaBtn">De-anonymize</button>
+        <input 
+          type="file" 
+          id="fileTextInput" 
+          accept=".pdf,.docx,.xlsx,.txt"
+        />
+      </div>
+
+      <!-- Blocco: File di Mapping -->
+      <div class="col-md-6 text-center">
+        <h3>Carica il File di Mapping</h3>
+
+        <p id="selectedMapFileLabel" class="fw-bold">Nessun file selezionato</p>
+
+        <div id="dropZoneMap" class="mb-3 border p-3">
+          Trascina qui il file di mapping
+        </div>
+        <p>Oppure</p>
+
+        <button 
+          id="selectFileMapBtn" 
+          type="button" 
+          class="btn btn-primary mb-2">
+          Seleziona File di Mapping...
+        </button>
+
+        <input 
+          type="file" 
+          id="fileMapInput" 
+          accept=".zip,.json"
+        />
+      </div>
     </div>
 
-    <!-- Colonna Destra -->
-    <div id="right">
-      <h3>Messaggi / Log:</h3>
-      <div id="messages"></div>
+    <!-- Pulsante DE-ANONIMIZZA -->
+    <div class="text-center mb-5">
+      <button 
+        id="deanonimizzaBtn" 
+        type="button" 
+        class="btn btn-success"
+      >
+        De-anonimizza
+      </button>
     </div>
-  </div>
+
+    <!-- Output del testo de-anonimizzato -->
+    <div class="row">
+      <div class="col-12">
+        <h3>Testo De-anonimizzato:</h3>
+        <div 
+          id="deanonText" 
+          class="border p-3" 
+          style="min-height: 150px; white-space: pre-wrap;"
+        ></div>
+      </div>
+    </div>
+
+  </div><!-- /.container -->
 
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Bootstrap JS (bundle) -->
+  <script 
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+  </script>
 
+  <!-- Script per la De-anonimizzazione -->
   <script>
-    let textFile = null;      // conterrà l'oggetto File del testo anonimizzato
-    let mappingFile = null;   // conterrà l'oggetto File del mapping
+    let selectedAnonTextFile = null;
+    let selectedMapFile = null;
 
     $(document).ready(function () {
-      // --- TEXT FILE ---
-      setupDropZone(
-        "#dropZoneText", 
-        "#selectTextBtn", 
-        "#textFileInput",
-        function(file) {
-          textFile = file;
-          $("#dropZoneText").text("File testo selezionato: " + file.name);
-        }
-      );
+      const dropZoneText = $("#dropZoneText");
+      const dropZoneMap  = $("#dropZoneMap");
+      const fileTextInput = $("#fileTextInput");
+      const fileMapInput  = $("#fileMapInput");
+      const selectedAnonTextFileLabel = $("#selectedAnonTextFileLabel");
+      const selectedMapFileLabel = $("#selectedMapFileLabel");
 
-      // --- MAPPING FILE ---
-      setupDropZone(
-        "#dropZoneMapping", 
-        "#selectMappingBtn", 
-        "#mappingFileInput",
-        function(file) {
-          mappingFile = file;
-          $("#dropZoneMapping").text("File mapping selezionato: " + file.name);
-        }
-      );
+      // --- Drag & Drop per il file di Testo Anonimizzato ---
+      dropZoneText.on("dragenter", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneText.addClass("hover");
+      });
+      dropZoneText.on("dragleave", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneText.removeClass("hover");
+      });
+      dropZoneText.on("dragover", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      dropZoneText.on("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneText.removeClass("hover");
 
-      // Clic su "De-anonymize"
+        const files = e.originalEvent.dataTransfer.files;
+        if (files && files.length > 0) {
+          selectedAnonTextFile = files[0];
+          selectedAnonTextFileLabel.text("File di testo selezionato: " + selectedAnonTextFile.name);
+        }
+      });
+
+      // --- Drag & Drop per il File di Mapping ---
+      dropZoneMap.on("dragenter", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneMap.addClass("hover");
+      });
+      dropZoneMap.on("dragleave", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneMap.removeClass("hover");
+      });
+      dropZoneMap.on("dragover", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      dropZoneMap.on("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneMap.removeClass("hover");
+
+        const files = e.originalEvent.dataTransfer.files;
+        if (files && files.length > 0) {
+          selectedMapFile = files[0];
+          selectedMapFileLabel.text("File di mapping selezionato: " + selectedMapFile.name);
+        }
+      });
+
+      // --- Selezione manuale: pulsante "Seleziona File di Testo..." ---
+      $("#selectFileTextBtn").click(function() {
+        fileTextInput.trigger("click");
+      });
+      fileTextInput.change(function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+          selectedAnonTextFile = e.target.files[0];
+          selectedAnonTextFileLabel.text("File di testo selezionato: " + selectedAnonTextFile.name);
+        }
+      });
+
+      // --- Selezione manuale: pulsante "Seleziona File di Mapping..." ---
+      $("#selectFileMapBtn").click(function() {
+        fileMapInput.trigger("click");
+      });
+      fileMapInput.change(function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+          selectedMapFile = e.target.files[0];
+          selectedMapFileLabel.text("File di mapping selezionato: " + selectedMapFile.name);
+        }
+      });
+
+      // --- Clic su "De-anonimizza" ---
       $("#deanonimizzaBtn").click(async function() {
-        if (!textFile) {
-          alert("Seleziona o trascina il file di testo anonimizzato prima.");
-          return;
-        }
-        if (!mappingFile) {
-          alert("Seleziona o trascina il file di mapping prima.");
+        if (!selectedAnonTextFile || !selectedMapFile) {
+          alert("Seleziona (o trascina) sia il file di testo anonimizzato che il file di mapping.");
           return;
         }
 
-        $("#messages").text("Invio file al server, in corso...");
-
-        // Creiamo il FormData con i due file
         let formData = new FormData();
-        formData.append("textFile", textFile);
-        formData.append("mappingFile", mappingFile);
+        // Nomi campi come richiesti dal tuo backend (app.py)
+        formData.append("textFile", selectedAnonTextFile);
+        formData.append("mappingFile", selectedMapFile);
 
-        // Inviamo la richiesta AJAX
         try {
           const response = await $.ajax({
             url: "http://localhost:5000/api/deanonymize",
@@ -160,88 +220,36 @@
             data: formData,
             contentType: false,
             processData: false,
-            dataType: "json"  // ci aspettiamo JSON
+            dataType: "json"
           });
 
           if (response.error) {
-            $("#messages").text("Errore dal server: " + response.error);
+            alert("Errore dal server: " + response.error);
             return;
           }
 
-          // Supponiamo che il server risponda con { "deanonymized_base64": "..." }
-          if (response.deanonymized_base64) {
-            $("#messages").text("De-anonymizzazione completata. Avvio download...");
-            downloadDeanonymized(response.deanonymized_base64);
-          } else {
-            $("#messages").text("Il server non ha fornito il file de-anonimizzato.");
+          // Decodifica il testo de-anonimizzato
+          // (chiave: "deanonymized_base64")
+          const plainText = atob(response.deanonymized_base64);
+          $("#deanonText").text(plainText);
+
+          // Se il server restituisce anche uno zip_base64, lo scarichiamo
+          if (response.zip_base64) {
+            downloadZip(response.zip_base64);
           }
 
         } catch (err) {
-          console.error("Errore AJAX:", err);
-          $("#messages").text("Errore AJAX: " + err.statusText);
+          console.error("Errore AJAX: ", err);
+          alert("Si è verificato un errore durante la de-anonimizzazione.");
         }
       });
     });
 
-    /**
-     * Funzione helper per inizializzare dropZone + pulsante "Seleziona file..." + input file nascosto.
-     * @param {string} dropZoneSelector - es: "#dropZoneText"
-     * @param {string} buttonSelector   - es: "#selectTextBtn"
-     * @param {string} fileInputSelector- es: "#textFileInput"
-     * @param {Function} onFileSelected - callback che riceve un oggetto File
-     */
-    function setupDropZone(dropZoneSelector, buttonSelector, fileInputSelector, onFileSelected) {
-      const dropZone = $(dropZoneSelector);
-      const fileInput = $(fileInputSelector);
-
-      // Drag&drop events
-      dropZone.on("dragenter", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.addClass("hover");
-      });
-      dropZone.on("dragleave", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.removeClass("hover");
-      });
-      dropZone.on("dragover", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-      });
-      dropZone.on("drop", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.removeClass("hover");
-
-        const files = e.originalEvent.dataTransfer.files;
-        if (files && files.length > 0) {
-          const file = files[0];
-          onFileSelected(file);
-        }
-      });
-
-      // Pulsante "Seleziona..."
-      $(buttonSelector).click(() => {
-        fileInput.click();
-      });
-
-      // Cambio input file
-      fileInput.change((e) => {
-        if (e.target.files && e.target.files.length > 0) {
-          const file = e.target.files[0];
-          onFileSelected(file);
-        }
-      });
-    }
-
-    /**
-     * Funzione per scaricare il file de-anonimizzato da una stringa base64
-     */
-    function downloadDeanonymized(base64Data) {
+    // Funzione per scaricare lo ZIP in Base64
+    function downloadZip(base64Data) {
       const link = document.createElement("a");
-      link.href = "data:text/plain;base64," + base64Data;
-      link.download = "deanonymized.txt";
+      link.href = "data:application/zip;base64," + base64Data;
+      link.download = "deanonymized_package.zip"; 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

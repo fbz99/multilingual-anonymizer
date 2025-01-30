@@ -3,71 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <title>Anonimizzatore</title>
-  <style>
-    /* Navbar in alto */
-    nav {
-      background-color: #333;
-      color: #fff;
-      padding: 10px;
-    }
-    nav a {
-      color: #fff;
-      text-decoration: none;
-      margin-right: 20px;
-    }
-    nav a:hover {
-      text-decoration: underline;
-    }
 
-    /* Layout principale a due colonne */
-    #container {
-      display: flex;
-      height: 80vh;
-    }
-
-    /* Colonna sinistra */
-    #left {
-      width: 50%;
-      border: 2px dashed #999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    /* Box drag & drop */
-    #dropZone {
-      width: 80%;
-      height: 200px;
-      border: 2px dashed #aaa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      color: #666;
-      margin-bottom: 10px;
-    }
-    #dropZone.hover {
-      background-color: #eee;
-    }
-
-    /* Pulsante invisibile per file */
-    #fileInput {
-      display: none; 
-    }
-
-    /* Colonna destra */
-    #right {
-      width: 50%;
-      border: 1px solid #ccc;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    #anonText {
-      white-space: pre-wrap; /* Mantiene i ritorni a capo */
-    }
-  </style>
+  <!-- Bootstrap CSS -->
+  <link 
+    rel="stylesheet" 
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  >
+  <!-- Il tuo CSS personalizzato -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -77,35 +20,96 @@
     <a href="deanonymize.html">De-anonymize</a>
   </nav>
 
-  <h1>Anonimizzazione</h1>
-  <div id="container">
-    <!-- Colonna Sinistra -->
-    <div id="left">
-      <div id="dropZone">Trascina il file qui</div>
-      <p>Oppure</p>
-      <button id="selectFileBtn">Seleziona File...</button>
-      <input type="file" id="fileInput" accept=".pdf,.docx,.xlsx,.txt" />
-      <br />
-      <button id="anonimizzaBtn">Anonimizza</button>
-    </div>
+  <!-- Titolo -->
+  <h1 class="text-center my-4">Anonimizzazione</h1>
 
-    <!-- Colonna Destra -->
-    <div id="right">
-      <h3>Testo Anonimizzato:</h3>
-      <div id="anonText"></div>
+  <div class="container">
+    <!-- Riga con i due blocchi -->
+    <div class="row justify-content-center mb-4">
+      
+      <!-- Colonna sinistra: caricamento file -->
+      <div class="col-md-5 d-flex flex-column align-items-center">
+        <h3>Carica il File da Anonimizzare</h3>
+        
+        <!-- Nome file selezionato (aggiornato via JS) -->
+        <p id="selectedFileLabel" class="fw-bold mb-2">
+          Nessun file selezionato
+        </p>
+
+        <!-- Box drag & drop -->
+        <div 
+          id="dropZone" 
+          class="border p-4 mb-3 text-center" 
+          style="width: 100%; min-height: 200px;"
+        >
+          Trascina qui il file da anonimizzare
+        </div>
+
+        <p>Oppure</p>
+
+        <!-- Pulsante per selezione file (input nascosto in CSS) -->
+        <button 
+          id="selectFileBtn" 
+          type="button" 
+          class="btn btn-primary mb-3"
+        >
+          Seleziona File...
+        </button>
+
+        <!-- Input file nascosto -->
+        <input 
+          type="file" 
+          id="fileInput" 
+          accept=".pdf,.docx,.xlsx,.txt"
+        />
+      </div>
+
+      <!-- Colonna destra: output testo anonimizzato -->
+      <div class="col-md-5 d-flex flex-column align-items-center">
+        <h3>Testo Anonimizzato:</h3>
+        <p id="selectedFileLabel" class="fw-bold mb-2">
+          Nessun file selezionato
+        </p>
+        <div 
+          id="anonText" 
+          class="border p-3" 
+          style="width: 100%; min-height: 200px; white-space: pre-wrap;"
+        ></div>
+      </div>
+
+    </div><!-- /.row -->
+
+    <!-- Pulsante “Anonimizza” centrato -->
+    <div class="row">
+      <div class="col-12 text-center">
+        <button 
+          id="anonimizzaBtn" 
+          type="button" 
+          class="btn btn-success"
+        >
+          Anonimizza
+        </button>
+      </div>
     </div>
-  </div>
+  </div><!-- /.container -->
 
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Bootstrap JS (bundle) -->
+  <script 
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+  </script>
+
+  <!-- Script di Anonimizzazione (invariato nella logica) -->
   <script>
     let selectedFile = null;
 
     $(document).ready(function () {
       const dropZone = $("#dropZone");
       const fileInput = $("#fileInput");
+      const selectedFileLabel = $("#selectedFileLabel");
 
-      // Gestione del DRAG & DROP
+      // DRAG & DROP
       dropZone.on("dragenter", function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -128,43 +132,41 @@
         const files = e.originalEvent.dataTransfer.files;
         if (files && files.length > 0) {
           selectedFile = files[0];
-          dropZone.text("File selezionato: " + selectedFile.name);
+          selectedFileLabel.text("File selezionato: " + selectedFile.name);
         }
       });
 
-      // Apertura del selettore file
+      // Pulsante “Seleziona File...”
       $("#selectFileBtn").click(function() {
         fileInput.click();
       });
 
-      // Quando l'utente seleziona un file via input
+      // Cambio file via input
       fileInput.change(function(e) {
         if (e.target.files && e.target.files.length > 0) {
           selectedFile = e.target.files[0];
-          dropZone.text("File selezionato: " + selectedFile.name);
+          selectedFileLabel.text("File selezionato: " + selectedFile.name);
         }
       });
 
-      // Clic su "Anonimizza"
+      // Pulsante “Anonimizza”
       $("#anonimizzaBtn").click(async function() {
         if (!selectedFile) {
           alert("Seleziona o trascina un file prima di cliccare Anonimizza.");
           return;
         }
 
-        // Creiamo il FormData con il file
         let formData = new FormData();
         formData.append("file", selectedFile);
 
-        // Inviamo l'AJAX al backend
         try {
           const response = await $.ajax({
-            url: "http://localhost:5000/api/anonymize",  // Adatta se la porta è diversa
+            url: "http://localhost:5000/api/anonymize",
             method: "POST",
             data: formData,
             contentType: false,
             processData: false,
-            dataType: "json" // Riceviamo JSON
+            dataType: "json"
           });
 
           if (response.error) {
@@ -172,17 +174,16 @@
             return;
           }
 
-          // response = { anonymized_text, zip_base64 }
-          // Mostriamo il testo anonimizzato
+          // { anonymized_text, zip_base64 }
           $("#anonText").text(response.anonymized_text);
 
-          // Scarichiamo subito lo zip
+          // Download ZIP se presente
           if (response.zip_base64) {
             downloadZip(response.zip_base64);
           }
 
         } catch (err) {
-          console.error("Errore AJAX: ", err);
+          console.error("Errore AJAX:", err);
           alert("Si è verificato un errore durante l'anonimizzazione.");
         }
       });
