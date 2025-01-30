@@ -1,4 +1,3 @@
-```markdown
 # Overview
 
 Questa applicazione fornisce un sistema multilingua per **anonimizzare** e **de-anonimizzare** documenti di testo, sfruttando [GLiNER](https://github.com/gliner/GliNER) per il Named Entity Recognition (NER). Supporta vari formati di file (TXT, PDF, DOCX, XLSX, ecc.) e riconosce in modo automatico l’inglese e l’italiano (estensibile ad altre lingue).
